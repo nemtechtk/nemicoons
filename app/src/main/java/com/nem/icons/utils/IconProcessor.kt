@@ -1,9 +1,11 @@
+
 package com.nem.icons.utils
 
 import android.graphics.*
 import android.graphics.drawable.Drawable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import android.graphics.Color as AndroidColor
 import com.nem.icons.domain.model.IconStyle
 import com.nem.icons.domain.model.StyleMode
 import kotlin.math.*
@@ -25,36 +27,27 @@ object IconProcessor {
         return bitmap
     }
 
-    /**
-     * Main styling function.
-     * Preserves structure (edges, highlights, shadows) and recolors midtones.
-     */
     fun applyStyle(original: Bitmap, style: IconStyle): Bitmap {
         val src = ensureSize(original, ICON_SIZE)
         return when (style.mode) {
-            StyleMode.GRADIENT  -> applyGradientStyle(src, style)
-            StyleMode.TINT      -> applyTintStyle(src, style)
+            StyleMode.GRADIENT -> applyGradientStyle(src, style)
+            StyleMode.TINT -> applyTintStyle(src, style)
             StyleMode.HUE_SHIFT -> applyHueShiftStyle(src, style)
         }.let { applyColorAdjustments(it, style) }
     }
-
-    // ─── GRADIENT MODE ───────────────────────────────────────────────────────
 
     private fun applyGradientStyle(src: Bitmap, style: IconStyle): Bitmap {
         val w = src.width
         val h = src.height
 
-        // 1. Separate the icon into layers
-        val alphaLayer   = extractAlpha(src)
+        val alphaLayer = extractAlpha(src)
         val luminanceMap = extractLuminance(src)
-        val edgeMap      = detectEdges(src)
+        val edgeMap = detectEdges(src)
         val highlightMap = extractHighlights(src)
-        val shadowMap    = extractShadows(src)
+        val shadowMap = extractShadows(src)
 
-        // 2. Build gradient layer matching the icon shape
         val gradientBitmap = buildGradient(w, h, style.color1, style.color2, style.gradientAngle)
 
-        // 3. Composite: gradient + preserve structure
         val result = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val srcPixels = IntArray(w * h)
         val gradPixels = IntArray(w * h)
@@ -66,42 +59,54 @@ object IconProcessor {
         alphaLayer.getPixels(alphaPixels, 0, w, 0, 0, w, h)
 
         for (i in srcPixels.indices) {
-            val srcAlpha = Color.alpha(srcPixels[i])
+            val srcAlpha = AndroidColor.alpha(srcPixels[i])
             if (srcAlpha < 10) {
                 resultPixels[i] = 0
                 continue
             }
 
-            val srcR = Color.red(srcPixels[i])
-            val srcG = Color.green(srcPixels[i])
-            val srcB = Color.blue(srcPixels[i])
+            val srcR = AndroidColor.red(srcPixels[i])
+            val srcG = AndroidColor.green(srcPixels[i])
+            val srcB = AndroidColor.blue(srcPixels[i])
 
             val lum = luminanceMap[i]
             val edge = edgeMap[i]
             val highlight = highlightMap[i]
             val shadow = shadowMap[i]
 
-            val gradR = Color.red(gradPixels[i])
-            val gradG = Color.green(gradPixels[i])
-            val gradB = Color.blue(gradPixels[i])
+            val gradR = AndroidColor.red(gradPixels[i])
+            val gradG = AndroidColor.green(gradPixels[i])
+            val gradB = AndroidColor.blue(gradPixels[i])
 
             val intensity = style.intensity
 
-            // Blend: gradient replaces midtones, preserves highlights/shadows/edges
-            val edgeWeight    = edge * 0.6f
+            val edgeWeight = edge * 0.6f
             val highlightWeight = highlight * 0.8f
-            val shadowWeight  = shadow * 0.5f
+            val shadowWeight = shadow * 0.5f
             val preserveWeight = (edgeWeight + highlightWeight + shadowWeight).coerceAtMost(1f)
             val gradWeight = (1f - preserveWeight) * intensity
 
-            val finalR = (srcR * preserveWeight + gradR * gradWeight + srcR * (1f - preserveWeight - gradWeight)).toInt()
-            val finalG = (srcG * preserveWeight + gradG * gradWeight + srcG * (1f - preserveWeight - gradWeight)).toInt()
-            val finalB = (srcB * preserveWeight + gradB * gradWeight + srcB * (1f - preserveWeight - gradWeight)).toInt()
+            val finalR = (
+                srcR * preserveWeight +
+                gradR * gradWeight +
+                srcR * (1f - preserveWeight - gradWeight)
+            ).toInt()
 
-            // Re-add ColorOS-style subtle highlight shimmer on top
+            val finalG = (
+                srcG * preserveWeight +
+                gradG * gradWeight +
+                srcG * (1f - preserveWeight - gradWeight)
+            ).toInt()
+
+            val finalB = (
+                srcB * preserveWeight +
+                gradB * gradWeight +
+                srcB * (1f - preserveWeight - gradWeight)
+            ).toInt()
+
             val shimmer = (highlight * 40 * intensity).toInt()
 
-            resultPixels[i] = Color.argb(
+            resultPixels[i] = AndroidColor.argb(
                 srcAlpha,
                 (finalR + shimmer).coerceIn(0, 255),
                 (finalG + shimmer).coerceIn(0, 255),
@@ -115,10 +120,9 @@ object IconProcessor {
         return result
     }
 
-    // ─── TINT MODE ────────────────────────────────────────────────────────────
-
     private fun applyTintStyle(src: Bitmap, style: IconStyle): Bitmap {
-        val w = src.width; val h = src.height
+        val w = src.width
+        val h = src.height
         val result = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
         canvas.drawBitmap(src, 0f, 0f, null)
@@ -126,7 +130,7 @@ object IconProcessor {
         val c1 = style.color1
         val paint = Paint().apply {
             colorFilter = PorterDuffColorFilter(
-                android.graphics.Color.argb(
+                AndroidColor.argb(
                     (style.intensity * 180).toInt(),
                     (c1.red * 255).toInt(),
                     (c1.green * 255).toInt(),
@@ -139,10 +143,9 @@ object IconProcessor {
         return result
     }
 
-    // ─── HUE SHIFT MODE ──────────────────────────────────────────────────────
-
     private fun applyHueShiftStyle(src: Bitmap, style: IconStyle): Bitmap {
-        val w = src.width; val h = src.height
+        val w = src.width
+        val h = src.height
         val hsv1 = FloatArray(3)
         android.graphics.Color.colorToHSV(style.color1.toArgb(), hsv1)
         val targetHue = hsv1[0]
@@ -153,14 +156,18 @@ object IconProcessor {
         val hsv = FloatArray(3)
 
         for (i in srcPixels.indices) {
-            val a = Color.alpha(srcPixels[i])
-            if (a < 10) { result[i] = 0; continue }
+            val a = AndroidColor.alpha(srcPixels[i])
+            if (a < 10) {
+                result[i] = 0
+                continue
+            }
+
             android.graphics.Color.colorToHSV(srcPixels[i], hsv)
             if (hsv[1] > 0.1f) {
                 hsv[0] = targetHue + (hsv[0] - targetHue) * (1f - style.intensity)
                 hsv[1] = (hsv[1] * (0.5f + style.intensity * 0.5f)).coerceIn(0f, 1f)
             }
-            result[i] = (android.graphics.Color.HSVToColor(a, hsv))
+            result[i] = android.graphics.Color.HSVToColor(a, hsv)
         }
 
         val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -168,21 +175,17 @@ object IconProcessor {
         return out
     }
 
-    // ─── COLOR ADJUSTMENTS ───────────────────────────────────────────────────
-
     private fun applyColorAdjustments(src: Bitmap, style: IconStyle): Bitmap {
         if (style.brightness == 0f && style.contrast == 0f && style.saturation == 0f) return src
 
         val cm = ColorMatrix()
 
-        // Saturation
         if (style.saturation != 0f) {
             val sat = ColorMatrix()
             sat.setSaturation(1f + style.saturation)
             cm.postConcat(sat)
         }
 
-        // Brightness + Contrast
         if (style.brightness != 0f || style.contrast != 0f) {
             val b = style.brightness * 255f
             val c = style.contrast + 1f
@@ -202,18 +205,25 @@ object IconProcessor {
         return result
     }
 
-    // ─── HELPERS ─────────────────────────────────────────────────────────────
-
-    private fun buildGradient(w: Int, h: Int, c1: Color, c2: Color, angleDeg: Float): Bitmap {
+    private fun buildGradient(
+        w: Int,
+        h: Int,
+        c1: Color,
+        c2: Color,
+        angleDeg: Float
+    ): Bitmap {
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val rad = Math.toRadians(angleDeg.toDouble())
         val dx = cos(rad).toFloat()
         val dy = sin(rad).toFloat()
-        val cx = w / 2f; val cy = h / 2f
+        val cx = w / 2f
+        val cy = h / 2f
         val half = sqrt((w * dx).pow(2) + (h * dy).pow(2)) / 2f
-        val x0 = cx - dx * half; val y0 = cy - dy * half
-        val x1 = cx + dx * half; val y1 = cy + dy * half
+        val x0 = cx - dx * half
+        val y0 = cy - dy * half
+        val x1 = cx + dx * half
+        val y1 = cy + dy * half
 
         val paint = Paint().apply {
             shader = LinearGradient(
@@ -226,52 +236,60 @@ object IconProcessor {
         return bitmap
     }
 
-    /** Extract per-pixel luminance 0..1 */
     private fun extractLuminance(src: Bitmap): FloatArray {
         val pixels = IntArray(src.width * src.height)
         src.getPixels(pixels, 0, src.width, 0, 0, src.width, src.height)
         return FloatArray(pixels.size) { i ->
-            val r = Color.red(pixels[i]) / 255f
-            val g = Color.green(pixels[i]) / 255f
-            val b = Color.blue(pixels[i]) / 255f
+            val r = AndroidColor.red(pixels[i]) / 255f
+            val g = AndroidColor.green(pixels[i]) / 255f
+            val b = AndroidColor.blue(pixels[i]) / 255f
             0.2126f * r + 0.7152f * g + 0.0722f * b
         }
     }
 
-    /** Detect edges via Sobel 0..1 */
     private fun detectEdges(src: Bitmap): FloatArray {
-        val w = src.width; val h = src.height
+        val w = src.width
+        val h = src.height
         val lum = extractLuminance(src)
         val edges = FloatArray(w * h)
+
         for (y in 1 until h - 1) {
             for (x in 1 until w - 1) {
-                val gx = -lum[(y-1)*w+(x-1)] + lum[(y-1)*w+(x+1)] +
-                        -2*lum[y*w+(x-1)] + 2*lum[y*w+(x+1)] +
-                        -lum[(y+1)*w+(x-1)] + lum[(y+1)*w+(x+1)]
-                val gy = -lum[(y-1)*w+(x-1)] - 2*lum[(y-1)*w+x] - lum[(y-1)*w+(x+1)] +
-                        lum[(y+1)*w+(x-1)] + 2*lum[(y+1)*w+x] + lum[(y+1)*w+(x+1)]
-                edges[y*w+x] = sqrt(gx*gx + gy*gy).coerceIn(0f, 1f)
+                val gx = -lum[(y - 1) * w + (x - 1)] + lum[(y - 1) * w + (x + 1)] +
+                    -2 * lum[y * w + (x - 1)] + 2 * lum[y * w + (x + 1)] +
+                    -lum[(y + 1) * w + (x - 1)] + lum[(y + 1) * w + (x + 1)]
+
+                val gy = -lum[(y - 1) * w + (x - 1)] - 2 * lum[(y - 1) * w + x] -
+                    lum[(y - 1) * w + (x + 1)] +
+                    lum[(y + 1) * w + (x - 1)] + 2 * lum[(y + 1) * w + x] +
+                    lum[(y + 1) * w + (x + 1)]
+
+                edges[y * w + x] = sqrt(gx * gx + gy * gy).coerceIn(0f, 1f)
             }
         }
         return edges
     }
 
-    /** Extract highlights (pixels brighter than 0.75 lum) */
     private fun extractHighlights(src: Bitmap): FloatArray {
         val lum = extractLuminance(src)
-        return FloatArray(lum.size) { i -> ((lum[i] - 0.75f) / 0.25f).coerceIn(0f, 1f) }
+        return FloatArray(lum.size) { i ->
+            ((lum[i] - 0.75f) / 0.25f).coerceIn(0f, 1f)
+        }
     }
 
-    /** Extract shadows (pixels darker than 0.25 lum) */
     private fun extractShadows(src: Bitmap): FloatArray {
         val lum = extractLuminance(src)
-        return FloatArray(lum.size) { i -> ((0.25f - lum[i]) / 0.25f).coerceIn(0f, 1f) }
+        return FloatArray(lum.size) { i ->
+            ((0.25f - lum[i]) / 0.25f).coerceIn(0f, 1f)
+        }
     }
 
     private fun extractAlpha(src: Bitmap): Bitmap {
         val alpha = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(alpha)
-        val paint = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC) }
+        val paint = Paint().apply {
+            xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC)
+        }
         canvas.drawBitmap(src, 0f, 0f, paint)
         return alpha
     }
@@ -285,6 +303,7 @@ object IconProcessor {
         val canvas = Canvas(output)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val rect = RectF(0f, 0f, src.width.toFloat(), src.height.toFloat())
+
         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)
         paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
         canvas.drawBitmap(src, 0f, 0f, paint)
