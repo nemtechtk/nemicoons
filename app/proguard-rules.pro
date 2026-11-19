@@ -1,0 +1,3 @@
+-keep class com.nem.icons.** { *; }
+-keepattributes *Annotation*
+-dontwarn kotlinx.coroutines.**
