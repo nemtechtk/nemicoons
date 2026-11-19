@@ -1,8 +1,5 @@
 package com.nem.icons.ui.components
 
-
-package com.nem.icons.ui.components
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -25,7 +22,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
-
 
 @Composable
 fun ColorPickerDialog(
