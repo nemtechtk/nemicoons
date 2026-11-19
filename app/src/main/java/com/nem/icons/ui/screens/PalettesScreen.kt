@@ -100,11 +100,11 @@ fun PalettesScreen(viewModel: MainViewModel) {
                                     )
                                 } else {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(
-                                            Icons.Default.WallpaperOutlined,
-                                            null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
-                                        )
+                                       Icon(
+    imageVector = Icons.Default.Wallpaper,
+    contentDescription = null,
+    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+)
                                         Spacer(Modifier.height(4.dp))
                                         Text(
                                             "Pick",
